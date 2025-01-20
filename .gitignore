@@ -64,3 +64,5 @@ npm-debug.log*
 coverage/
 .coverage
 htmlcov/
+
+init.sql
