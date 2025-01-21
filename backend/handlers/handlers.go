@@ -2,7 +2,9 @@
 package handlers
 
 import (
+	"bytes"
 	"codeguardian/models"
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -69,35 +71,63 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 }
 
 func SubmitCode(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var submission models.CodeSubmission
-		if err := c.ShouldBindJSON(&submission); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+    return func(c *gin.Context) {
+        var submission models.CodeSubmission
+        if err := c.ShouldBindJSON(&submission); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
 
-		userID, exists := c.Get("user_id")
-		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-			return
-		}
+        userID, exists := c.Get("user_id")
+        if !exists {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+            return
+        }
 
-		submission.UserID = userID.(uint)
-		submission.Status = "pending"
+        submission.UserID = userID.(uint)
+        submission.Status = "pending"
 
-		if err := db.Create(&submission).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to submit code"})
-			return
-		}
+        if err := db.Create(&submission).Error; err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to submit code"})
+            return
+        }
 
-		// Here you would typically trigger the ML service analysis
-		// For now, we'll just return the submission ID
-		c.JSON(http.StatusAccepted, gin.H{
-			"message": "Code submitted successfully",
-			"id": submission.ID,
-		})
-	}
+        go func() {
+            payload, err := json.Marshal(submission)
+            if err != nil {
+                submission.Status = "error"
+                db.Save(&submission)
+                return
+            }
+
+            resp, err := http.Post("http://ml-service:8000/analyze", "application/json", bytes.NewBuffer(payload))
+            if err != nil || resp.StatusCode != http.StatusOK {
+                submission.Status = "error"
+                db.Save(&submission)
+                return
+            }
+            defer resp.Body.Close()
+
+            var result models.CodeSubmissionResponse
+            if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+                submission.Status = "error"
+                db.Save(&submission)
+                return
+            }
+
+            // Assign the results
+            submission.Status = result.Status
+            submission.Results = result.Results // Now it's correctly assigned
+            db.Save(&submission)
+        }()
+
+        c.JSON(http.StatusAccepted, gin.H{
+            "message": "Code submitted successfully",
+            "id":      submission.ID,
+        })
+    }
 }
+
 
 func GetReviews(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {

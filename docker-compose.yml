@@ -42,6 +42,27 @@ services:
     networks:
     - app-network
 
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ml-service:/app
+      - ./ml-service/models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MODEL_PATH=/app/models
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+
   postgres:
     image: postgres:14-alpine
     ports:
@@ -83,23 +104,3 @@ volumes:
 networks:
   app-network:
     driver: bridge
-
-#   ml-service:
-#     build:
-#       context: ./ml-service
-#       dockerfile: Dockerfile
-#     ports:
-#       - "8000:8000"
-#     volumes:
-#       - ./ml-service:/app
-#       - ./ml-service/models:/app/models
-#     environment:
-#       - PYTHONUNBUFFERED=1
-#       - MODEL_PATH=/app/models
-#     deploy:
-#       resources:
-#         reservations:
-#           devices:
-#             - driver: nvidia
-#               count: 1
-#               capabilities: [gpu]
