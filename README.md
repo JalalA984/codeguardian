@@ -16,6 +16,8 @@ docker-compose up
 
 CodeGuardian is a cutting-edge full-stack application that integrates artificial intelligence, machine learning, and cybersecurity principles to provide comprehensive code review, vulnerability detection, and real-time improvement suggestions. The platform helps developers write more secure, efficient, and maintainable code by identifying potential security risks, suggesting improvements, and providing performance insights.
 
+![Dashboard Image](images/code1.png)
+
 ## Key Features
 
 - 🔒 Real-time security vulnerability detection: Detect common security flaws like SQL injections, command injections, and weak cryptography.
